@@ -1,0 +1,263 @@
+<?php
+
+// $Id$
+
+/**
+ * @file vulnerable.module
+ *
+ * This is a module you should only install on a completely isolated test site
+ * to understand how vulnerabilities work and how to fix them.
+ *
+ * +++++ DO NOT INSTALL THIS ON A PUBLICLY ACCESSIBLE SITE +++++
+ *
+ */
+
+/**
+ * Implementation of hook_menu().
+ */
+function vulnerable_menu() {
+  $items = array();
+  $items['vulnerable'] = array(
+    'title' => 'Vulnerable module overview',
+    'access arguments' => array('access content'),
+    'page callback' => 'vulnerable_overview',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['vulnerable/insufficient-authentication'] = array(
+    'title' => 'Insufficient Authentication',
+    'access arguments' => array('access content'),
+    'page callback' => 'vulnerable_insufficient_authentication',
+    'page arguments' => array(2),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['vulnerable/log-in-sql-injection'] = array(
+    'title' => '',
+    'access arguments' => array('access content'),
+    'page callback' => 'vulnerable_log_in_injection',
+    'page arguments' => array(2, 3),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['vulnerable/show-me-the-data'] = array(
+    'title' => 'Here is some data about our users',
+    'access arguments' => array('access content'),
+    'page callback' => 'vulnerable_show_me_the_data',
+    'page arguments' => array(2),
+    'type' => MENU_CALLBACK,
+  );
+  $items['vulnerable/csrf-disable'] = array(
+    'title' => 'Disable users in a csrf, xss, sql injection kind of way',
+    'access arguments' => array('access content'),
+    'page callback' => 'vulnerable_account_disable',
+    'page arguments' => array(2),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['vulnerable/user-form-data'] = array(
+    'title' => 'Show user supplied data as form options.',
+    'access arguments' => array('access content'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('vulnerable_user_fapi_form'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['vulnerable/node-list'] = array(
+    'title' => 'Show nodes in a list.',
+    'access arguments' => array('access content'),
+    'page callback' => 'vulnerable_node_list',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['vulnerable/cookie-monster'] = array(
+    'title' => 'NOM NOM NOM - Eat those cookies.',
+    'access arguments' => array('access content'),
+    'page callback' => 'vulnerable_steal_those_cookies',
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Page callback to give an overview of the module's features.
+ */
+function vulnerable_overview() {
+  $items[] = l('Insufficient Authentication', 'vulnerable/insufficient-authentication') . ' ' . t('Allows users to login to any account simply by supplying a UID to the URL');
+
+  $items[] = l('Login SQL Injection', 'vulnerable/log-in-sql-injection') . ' ' . t('Another example of sql injection and using GET instead of POST');
+
+  $items[] = l('Here is some data about our users', 'vulnerable/show-me-the-data') . ' ' . t('An example of authorization bypass, sql injection, and xss.');
+
+  $items[] = l('Disable users in a csrf, xss, sql injection kind of way', 'vulnerable/csrf-disable') . ' ' . t('Allows any user to disable an account with some CSRF and sql injection.');
+
+  $items[] = l('Show user supplied data as form options.', 'vulnerable/user-form-data') . ' ' . t('Outputs some data from different form elements to show which are vulnerable and which are not.');
+
+  $items[] = l('Eat those cookies (NOM NOM NOM).', 'vulnerable/cookie-monster') . ' ' . t('A cookie logger functionality which requires an XSS to exploit.');
+
+  $items[] = l('Show all nodes to everyone', 'vulnerable/node-list') . ' ' . t('A list of nodes that disobeys node access rules and also allows XSS from node titles/bodies.');
+
+  return theme('item_list', $items);
+}
+
+/**
+ * An example of insufficient authentication.
+ * Exploit this by visiting example.com/vulnerable/insufficient-authentication/1
+ *  and you will become the uid 1 user without any password.
+ * If an account has been blocked they could also use this to login since it doesn't check whether they are active.
+ */
+function vulnerable_insufficient_authentication($uid) {
+  global $user;
+  // This should, at the minimum, also be checking a username and password.
+  $account = user_load(array('uid' => $uid));
+  if (!empty($account->name)) {
+    $user = $account;
+    // If someone gets javascript into their name this would be an XSS vulnerability
+    drupal_set_message('You are now logged in as '. $user->name);
+  }
+  return t('Hey, this is pretty vulnerable.');
+}
+
+/**
+ * Another example of sql injection and using GET instead of POST
+ * To exploit sql injection: example.com/vulnerable/log-in-sql-injection/a/a')) OR (uid = 1 AND 1 = 1) OR ((1 = 'a
+ * If the first login doesn't work, be sure to visit the url twice (maybe this is a problem if you are using Pressflow)
+ * The problem with the GET is that your password is in plain text in places like the Apache logs and the browser history
+ * If an account has been blocked they could also use this to login since it doesn't check whether they are active.
+ */
+function vulnerable_log_in_injection($name, $password) {
+  // More SQL injection
+  drupal_set_message("SELECT uid FROM {users} WHERE ( name = '$name' AND pass = md5('$password'))");
+  $uid = db_result(db_query("SELECT uid FROM {users} WHERE ( name = '$name' AND pass = md5('$password'))"));
+  if (!empty($uid)) {
+    global $user;
+    $user = user_load(array('uid' => $uid));
+  }
+  return t('Hey, this is pretty vulnerable.');
+}
+
+/**
+ * An example of authorization bypass, sql injection, and xss.
+ *
+ * To exploit authorization bypass, enter a character in a username that is "blocked" and would therefore only be visible to admins.
+ * To exploit xss (In Opera only): example.com/vulnerable/show-me-the-data/<IMG SRC=javascript:alert('XSS')>
+ * To exploit sql injection: example.com/vulnerable/show-me-the-data/' UNION SELECT uid, pass, init FROM users where 1=1 OR 1 ='
+ */
+function vulnerable_show_me_the_data($user_search) {
+  drupal_set_title('Searching for '. $user_search);
+  if (empty($user_search)) {
+    $output = 'Please add some characters from a username onto the end of this URL to search the users.';
+  }
+  else {
+    // Here is a SQL injection - could be used to get data and metadata from the database.
+    // Should use %d, %s style placeholders for the variable.
+    $results = db_query("SELECT uid, name, mail FROM {users} WHERE name LIKE '%%$user_search%%'");
+
+    // Here is some XSS, should use the t() function with @ or %
+    $output = 'Information about users with '. $user_search .' in their name<br>.';
+
+    while ($result = db_fetch_object($results)) {
+      // More XSS - should use t() and % or @
+      $output .= "UID:  $result->uid  Name: $result->name Mail: $result->mail <br>";
+    }
+  }
+  return $output;
+}
+
+/**
+ * Access bypass.
+ * To exploit access bypass: Just unpublish a node, install a node access module to hide stuff, and visit vulnerable/node-list
+ * To exploit XSS: create a node with XSS in the title or body.
+ */
+function vulnerable_node_list(){
+  $node = node_load(arg(2));
+  $access = db_result(db_query(db_rewrite_sql("SELECT n.nid FROM {node} n WHERE n.nid = %d"), $node->nid));
+  if ($access) {
+    drupal_set_message(check_plain($node->title));
+  }
+
+  $results = db_query("SELECT n.nid, n.title, nr.body FROM {node} n INNER JOIN {node_revisions} nr ON n.vid = nr.vid");
+  while ($result = db_fetch_object($results)) {
+    $items[] = l($result->nid, 'node/'. $result->nid) . $result->title . '|' . $result->body;
+  }
+  return theme('item_list', $items);
+}
+
+/**
+ * An example of a CSRF, SQL injection, xss, authorization bypass
+ *
+ * To exploit CSRF: create an image like <img src="http://example.com/vulnerable/csrf-disable/1"> and have an admin look at that page
+ * SQL Injection: visit example.com/vulnerable/csrf-disable/2 OR 1 = 1
+ * To exploit XSS: example.com/vulnerable/csrf-disable/5<IMG SRC=javascript:alert('XSS')>
+ * Authorization bypass: This URL is only protected by "access content" permissions so it is probably available to any anonymous user allow them to disable all users on the site
+ */
+function vulnerable_account_disable($uid){
+  db_query("UPDATE {users} SET status = 0 WHERE uid = $uid");
+  drupal_set_message('Access disabled for uid '. $uid);
+  return t('Hey, this is pretty vulnerable.');
+}
+
+/**
+ * Page callback for a cookie stealer.  Logs requests with a cookie in the URL.
+ * Requires XSS to exploit.
+ */
+function vulnerable_steal_those_cookies(){
+  if (!empty($_GET['c'])) {
+    watchdog('vulnerable', $_GET['c'], array(), WATCHDOG_ERROR);
+    return '<a href="http://icanhascheezburger.com/2007/01/15/day-i-got-cookie/"><img alt="day i got cookie" src="http://icanhascheezburger.files.wordpress.com/2007/01/2000067174645735152_rs.jpg" /></a><br />more <a href="http://icanhascheezburger.com">animals</a>';
+  }
+  else {
+    return '<a href="http://icanhascheezburger.com/2007/12/07/and-you-eated-it/"><img src="http://icanhascheezburger.wordpress.com/files/2007/12/funny-pictures-maded-me-a-cookie.jpg" alt="funny pictures" /></a><br />more <a href="http://icanhascheezburger.com">animals</a>';
+  }
+}
+
+/**
+ * Implementation of hook_init().
+ * Warn people they really shouldn't be running this module.
+ */
+function vulnerable_init() {
+  drupal_set_message(t('This site is running the "Vulnerable" module which should <strong>never</strong> be enabled on a <em>public</em> website.  If this is a public website, you should probably <a href="!uri">disabling it</a>', array('!uri' => url('admin/build/modules'))), 'error');
+}
+
+/**
+ * A form that shows some XSS opportunities.
+ */
+function vulnerable_user_fapi_form() {
+  $form = array();
+
+  // For convenience a little XSS data.  In reality this could come from a title, url, term,etc.
+  $user_data = "<script>alert('xss')</script>";
+  $user_data2 = "\"><script>alert('xss')</script><a href=\"";
+
+  $form['vulnerable_markup'] = array(
+    '#value' => '<a href="'. $user_data2 .'">'. $user_data .'</a>',
+  );
+
+  // Does not present a weakness - data is sanitized.
+  $form['vulnerable_select'] = array(
+    '#type' => 'select',
+    '#title' => 'A select',
+    '#options' => array($user_data => $user_data),
+  );
+
+  // These two are weaknesses:
+  $form['vulnerable_checkbox'] = array(
+    '#type' => 'checkbox',
+    '#title' => 'Unsafe checkbox'. $user_data,
+  );
+
+  $form['vulnerable_checkboxes'] = array(
+    '#type' => 'checkboxes',
+    '#title' => 'Some checkboxes',
+    '#options' => array('safe' => t('Safe'), $user_data => $user_data),
+  );
+
+  $form['vulnerable_radios'] = array(
+    '#type' => 'radios',
+    '#title' => 'Some checkboxes',
+    '#options' => array('safe' => t('Safe'), $user_data => $user_data),
+  );
+
+  return $form;
+}

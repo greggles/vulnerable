@@ -1,0 +1,4 @@
+; $Id$
+name = Vulnerable
+description = A module which exists solely to provide simple examples of security holes.  DO NOT INSTALL ON A PUBLIC WEBSITE!
+core = 6.x
