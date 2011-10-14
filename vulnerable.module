@@ -1,7 +1,5 @@
 <?php
 
-// $Id$
-
 /**
  * @file vulnerable.module
  *
@@ -112,8 +110,14 @@ function vulnerable_insufficient_authentication($uid) {
   // This should, at the minimum, also be checking a username and password.
   $account = user_load($uid);
   if (!empty($account->name)) {
+    // In Drupal 6 it was sufficient to just set the global $user to an account and then they were logged in.
     $user = $account;
-    // If someone gets javascript into their name this would be an XSS vulnerability
+    // In Drupal 7 this mistake is a little harder to make, you would have to call user_login_finalize to complete. 
+    user_login_finalize($user);
+    // In Drupal 7 to elevate permissions/change accounts would require further mistakes (probably closing original session and opening a new one).
+    
+    
+    // Separately, if someone gets javascript into their name this would be an XSS vulnerability.
     drupal_set_message('You are now logged in as ' . $user->name);
   }
   return t('Hey, this is pretty vulnerable.');
