@@ -116,7 +116,6 @@ function vulnerable_insufficient_authentication($uid) {
     user_login_finalize($user);
     // In Drupal 7 to elevate permissions/change accounts would require further mistakes (probably closing original session and opening a new one).
     
-    
     // Separately, if someone gets javascript into their name this would be an XSS vulnerability.
     drupal_set_message('You are now logged in as ' . $user->name);
   }
@@ -125,32 +124,44 @@ function vulnerable_insufficient_authentication($uid) {
 
 /**
  * Another example of sql injection and using GET instead of POST
- * To exploit sql injection: example.com/vulnerable/log-in-sql-injection/a/a')) OR (uid = 1 AND 1 = 1) OR ((1 = 'a
+ * To exploit sql injection: example.com/vulnerable/log-in-sql-injection/a/a') OR (uid = 1 AND 1 = 1) OR (1 = 'a
  * If the first login doesn't work, be sure to visit the url twice (maybe this is a problem if you are using Pressflow)
  * The problem with the GET is that your password is in plain text in places like the Apache logs and the browser history
  * If an account has been blocked they could also use this to login since it doesn't check whether they are active.
  */
 function vulnerable_log_in_injection($name, $password) {
-  // More SQL injection
-  drupal_set_message("SELECT uid FROM {users} WHERE ( name = '$name' AND pass = md5('$password'))");
+  // More SQL injection.
+  
+  // The password hashing system makes the original functionality nearly impossible, but this example does show how
+  // leaving "dead code" in your site/module can lead to a vulnerability.
+
+  // Debugging messages left in code. Happens surprisingly often. Super helpful for hackers.
+  drupal_set_message("SELECT uid FROM {users} WHERE ( name = '$name' AND pass = '$password')");
   // TODO Please convert this statement to the D7 database API syntax.
-  $uid = db_query("SELECT uid FROM {users} WHERE ( name = '$name' AND pass = md5('$password'))")->fetchField();
+  $uid = db_query("SELECT uid FROM {users} WHERE (name = '$name' AND pass = '$password')")->fetchField();
   if (!empty($uid)) {
     global $user;
     $user = user_load($uid);
+    user_login_finalize($user);
   }
   return t('Hey, this is pretty vulnerable.');
+}
+
+function dsm($v) {
+  drupal_set_message(var_export($v, true));
 }
 
 /**
  * An example of authorization bypass, sql injection, and xss.
  *
  * To exploit authorization bypass, enter a character in a username that is "blocked" and would therefore only be visible to admins.
- * To exploit xss (In Opera only): example.com/vulnerable/show-me-the-data/<IMG SRC=javascript:alert('XSS')>
+ * To exploit xss (opera only): example.com/vulnerable/show-me-the-data/<IMG SRC=javascript:alert('XSS')>
  * To exploit sql injection: example.com/vulnerable/show-me-the-data/' UNION SELECT uid, pass, init FROM users where 1=1 OR 1 ='
  */
 function vulnerable_show_me_the_data($user_search) {
-  drupal_set_title('Searching for ' . $user_search);
+  
+  // Using PASS_THROUGH to allow html through. Also lets through xss :(
+  drupal_set_title('Searching for <em>' . $user_search .'</em>', PASS_THROUGH);
   if (empty($user_search)) {
     $output = 'Please add some characters from a username onto the end of this URL to search the users.';
   }
@@ -163,7 +174,7 @@ function vulnerable_show_me_the_data($user_search) {
     // Here is some XSS, should use the t() function with @ or %
     $output = 'Information about users with ' . $user_search . ' in their name<br>.';
 
-    while ($result = db_fetch_object($results)) {
+    foreach ($results as $result) {
       // More XSS - should use t() and % or @
       $output .= "UID:  $result->uid  Name: $result->name Mail: $result->mail <br>";
     }
