@@ -137,7 +137,6 @@ function vulnerable_log_in_injection($name, $password) {
 
   // Debugging messages left in code. Happens surprisingly often. Super helpful for hackers.
   drupal_set_message("SELECT uid FROM {users} WHERE ( name = '$name' AND pass = '$password')");
-  // TODO Please convert this statement to the D7 database API syntax.
   $uid = db_query("SELECT uid FROM {users} WHERE (name = '$name' AND pass = '$password')")->fetchField();
   if (!empty($uid)) {
     global $user;
@@ -160,7 +159,7 @@ function dsm($v) {
  */
 function vulnerable_show_me_the_data($user_search) {
   
-  // Using PASS_THROUGH to allow html through. Also lets through xss :(
+  // Using PASS_THROUGH to allow html through. Also lets through xss for some browsers :(
   drupal_set_title('Searching for <em>' . $user_search .'</em>', PASS_THROUGH);
   if (empty($user_search)) {
     $output = 'Please add some characters from a username onto the end of this URL to search the users.';
@@ -168,7 +167,6 @@ function vulnerable_show_me_the_data($user_search) {
   else {
     // Here is a SQL injection - could be used to get data and metadata from the database.
     // Should use %d, %s style placeholders for the variable.
-    // TODO Please convert this statement to the D7 database API syntax.
     $results = db_query("SELECT uid, name, mail FROM {users} WHERE name LIKE '%%$user_search%%'");
 
     // Here is some XSS, should use the t() function with @ or %
@@ -189,15 +187,12 @@ function vulnerable_show_me_the_data($user_search) {
  */
 function vulnerable_node_list() {
   $node = node_load(arg(2));
-  // TODO Please convert this statement to the D7 database API syntax.
-  $access = db_query(db_rewrite_sql("SELECT n.nid FROM {node} n WHERE n.nid = %d"), $node->nid)->fetchField();
-  if ($access) {
-    drupal_set_message(check_plain($node->title));
-  }
+  // TODO HOW DO YOU DO A NODE ACCESS TAG IN A DB_QUERY?
+  drupal_set_message($node->title);
 
-  $results = db_query("SELECT n.nid, n.title, nr.body FROM {node} n INNER JOIN {node_revisions} nr ON n.vid = nr.vid");
-  while ($result = db_fetch_object($results)) {
-    $items[] = l($result->nid, 'node/' . $result->nid) . $result->title . '|' . $result->body;
+  $results = db_query("SELECT n.nid, n.title, fdb.body_value FROM {node} n INNER JOIN {field_data_body} fdb ON n.vid = fdb.revision_id");
+  foreach ($results as $result) {
+    $items[] = l($result->nid, 'node/' . $result->nid) . $result->title . '|' . $result->body_value;
   }
   return theme('item_list', array('items' => $items));
 }
@@ -211,7 +206,6 @@ function vulnerable_node_list() {
  * Authorization bypass: This URL is only protected by "access content" permissions so it is probably available to any anonymous user allow them to disable all users on the site
  */
 function vulnerable_account_disable($uid) {
-  // TODO Please convert this statement to the D7 database API syntax.
   db_query("UPDATE {users} SET status = 0 WHERE uid = $uid");
   drupal_set_message('Access disabled for uid ' . $uid);
   return t('Hey, this is pretty vulnerable.');
