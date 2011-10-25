@@ -254,7 +254,7 @@ function vulnerable_user_fapi_form($form, &$form_state) {
     '#options' => array($user_data => $user_data),
   );
 
-  // These two are weaknesses:
+  // These three are weaknesses:
   $form['vulnerable_checkbox'] = array(
     '#type' => 'checkbox',
     '#title' => 'Unsafe checkbox' . $user_data,
