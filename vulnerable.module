@@ -195,9 +195,10 @@ function vulnerable_node_list() {
   }
 
   $results = db_query("SELECT n.nid, n.title FROM {node} n");
-
   foreach ($results as $result) {
-    $items[] = l($result->nid, 'node/' . $result->nid) . ' :: ' . $result->title;
+    $node = node_load($result->nid);
+    $body = $node->body[LANGUAGE_NONE][0]['value'];
+    $items[] = l($result->nid, 'node/' . $result->nid) . ' :: ' . $result->title . ' :: ' . $body;
   }
   return theme('item_list', array('items' => $items));
 }
