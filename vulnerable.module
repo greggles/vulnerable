@@ -112,10 +112,10 @@ function vulnerable_insufficient_authentication($uid) {
   if (!empty($account->name)) {
     // In Drupal 6 it was sufficient to just set the global $user to an account and then they were logged in.
     $user = $account;
-    // In Drupal 7 this mistake is a little harder to make, you would have to call user_login_finalize to complete. 
+    // In Drupal 7 this mistake is a little harder to make, you would have to call user_login_finalize to complete.
     user_login_finalize($user);
     // In Drupal 7 to elevate permissions/change accounts would require further mistakes (probably closing original session and opening a new one).
-    
+
     // Separately, if someone gets javascript into their name this would be an XSS vulnerability.
     drupal_set_message('You are now logged in as ' . $user->name);
   }
@@ -131,7 +131,7 @@ function vulnerable_insufficient_authentication($uid) {
  */
 function vulnerable_log_in_injection($name, $password) {
   // More SQL injection.
-  
+
   // The password hashing system makes the original functionality nearly impossible, but this example does show how
   // leaving "dead code" in your site/module can lead to a vulnerability.
 
@@ -158,7 +158,7 @@ function dsm($v) {
  * To exploit sql injection: example.com/vulnerable/show-me-the-data/' UNION SELECT uid, pass, init FROM users where 1=1 OR 1 ='
  */
 function vulnerable_show_me_the_data($user_search) {
-  
+
   // Using PASS_THROUGH to allow html through. Also lets through xss for some browsers :(
   drupal_set_title('Searching for <em>' . $user_search .'</em>', PASS_THROUGH);
   if (empty($user_search)) {
@@ -186,13 +186,18 @@ function vulnerable_show_me_the_data($user_search) {
  * To exploit XSS: create a node with XSS in the title or body.
  */
 function vulnerable_node_list() {
-  $node = node_load(arg(2));
-  // TODO HOW DO YOU DO A NODE ACCESS TAG IN A DB_QUERY?
-  drupal_set_message($node->title);
 
-  $results = db_query("SELECT n.nid, n.title, fdb.body_value FROM {node} n INNER JOIN {field_data_body} fdb ON n.vid = fdb.revision_id");
+  if ($nid = arg(2)) {
+    $node = node_load($nid);
+    if ($node) {
+      drupal_set_message($node->title);
+    }
+  }
+
+  $results = db_query("SELECT n.nid, n.title FROM {node} n");
+
   foreach ($results as $result) {
-    $items[] = l($result->nid, 'node/' . $result->nid) . $result->title . '|' . $result->body_value;
+    $items[] = l($result->nid, 'node/' . $result->nid) . ' :: ' . $result->title;
   }
   return theme('item_list', array('items' => $items));
 }
