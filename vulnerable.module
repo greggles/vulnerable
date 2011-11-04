@@ -146,8 +146,10 @@ function vulnerable_log_in_injection($name, $password) {
   return t('Hey, this is pretty vulnerable.');
 }
 
-function dsm($v) {
-  drupal_set_message(var_export($v, true));
+if (!function_exists('dsm')) {
+  function dsm($v) {
+    drupal_set_message(var_export($v, true));
+  }
 }
 
 /**
