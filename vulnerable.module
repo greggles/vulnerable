@@ -172,7 +172,7 @@ function vulnerable_show_me_the_data($user_search) {
  */
 function vulnerable_node_list(){
   $node = node_load(arg(2));
-  drupal_set_message(check_plain($node->title));
+  drupal_set_message($node->title);
 
   $results = db_query("SELECT n.nid, n.title, nr.body FROM {node} n INNER JOIN {node_revisions} nr ON n.vid = nr.vid");
   while ($result = db_fetch_object($results)) {
