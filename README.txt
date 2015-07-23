@@ -6,9 +6,9 @@ The vulnerable.module which accompanies the book http://crackingdrupal.com
 This module is for educational purposes only. "Fixes" welcome
 as pull requests on github.
 
-Send praise via tweets @greggles or blog posts that link to 
-http://drupalscout.com/
+Send praise via tweets [@greggles](https://twitter.com/greggles) or blog posts that link to
+[Cracking Drupal](http://crackingdrupal.com/).
 
-Send complaints via issue reports on github.
+Send complaints via issue reports on github :)
 
 Thanks for trying it out!
