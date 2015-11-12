@@ -244,7 +244,7 @@ function vulnerable_steal_those_cookies() {
  */
 function vulnerable_init() {
   if (!drupal_is_cli()) {
-//    drupal_set_message(t('This site is running the "Vulnerable" module which should <strong>never</strong> be enabled on a <em>public</em> website.  If this is a public website, you should probably <a href="!uri">disable it.</a>', array('!uri' => url('admin/modules'))), 'error');
+    drupal_set_message(t('This site is running the "Vulnerable" module which should <strong>never</strong> be enabled on a <em>public</em> website.  If this is a public website, you should probably <a href="!uri">disable it.</a>', array('!uri' => url('admin/modules'))), 'error');
   }
 }
 
