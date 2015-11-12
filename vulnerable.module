@@ -160,7 +160,6 @@ if (!function_exists('dsm')) {
  * To exploit sql injection: example.com/vulnerable/show-me-the-data/' UNION SELECT uid, pass, init FROM users where 1=1 OR 1 ='
  */
 function vulnerable_show_me_the_data($user_search) {
-
   // Using PASS_THROUGH to allow html through. Also lets through xss for some browsers :(
   drupal_set_title('Searching for <em>' . $user_search .'</em>', PASS_THROUGH);
   if (empty($user_search)) {
@@ -186,9 +185,9 @@ function vulnerable_show_me_the_data($user_search) {
  * Access bypass.
  * To exploit access bypass: Just unpublish a node, install a node access module to hide stuff, and visit vulnerable/node-list
  * To exploit XSS: create a node with XSS in the title or body.
+ * To exploit sql injection: /vulnerable/node-list?order_field=nid;update users set mail = 'attacker@example.evil' where uid = 1;
  */
 function vulnerable_node_list() {
-
   if ($nid = arg(2)) {
     $node = node_load($nid);
     if ($node) {
@@ -196,7 +195,13 @@ function vulnerable_node_list() {
     }
   }
 
-  $results = db_query("SELECT n.nid, n.title FROM {node} n");
+  $query = db_select('node', 'n')
+    ->fields('n', array('nid', 'title'));
+  $order = isset($_GET['order']) ? $_GET['order'] : 'DESC';
+  $order_field = isset($_GET['order_field']) ? $_GET['order_field'] : 'n.nid';
+  $query->orderBy($order_field, $order);
+  $results = $query->execute();
+
   foreach ($results as $result) {
     $node = node_load($result->nid);
     $body = $node->body[LANGUAGE_NONE][0]['value'];
@@ -239,7 +244,7 @@ function vulnerable_steal_those_cookies() {
  */
 function vulnerable_init() {
   if (!drupal_is_cli()) {
-    drupal_set_message(t('This site is running the "Vulnerable" module which should <strong>never</strong> be enabled on a <em>public</em> website.  If this is a public website, you should probably <a href="!uri">disable it.</a>', array('!uri' => url('admin/modules'))), 'error');
+//    drupal_set_message(t('This site is running the "Vulnerable" module which should <strong>never</strong> be enabled on a <em>public</em> website.  If this is a public website, you should probably <a href="!uri">disable it.</a>', array('!uri' => url('admin/modules'))), 'error');
   }
 }
 
