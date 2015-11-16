@@ -303,7 +303,7 @@ function vulnerable_dbtng_weaknesses() {
   //    ]);
   //  $results = $query->execute();
 
-  // db_update->fields()
+  // db_update->fields([dangerous => safe])
   $query = db_update('variable')
     ->fields(array(
       "value = 'some value' where 1 = 2;insert into vulnerable_demo values ('fields key update');" => "some value' where 1= 2;insert into vulnerable_demo values ('fields value');",
@@ -360,7 +360,6 @@ function vulnerable_dbtng_weaknesses() {
   // ->innerJoin(safe, safe, dangerous, safe array of args)
   // ->leftJoin(safe, safe, dangerous, safe array of args)
   // ->rightJoin(safe, safe, dangerous, safe array of args)
-  // ->addJoin(safe, safe, dangerous, safe array of args)
   $query = db_select("node", "n")
     ->fields("n", array("uid"));
   $query->join("users", "u", "n.uid = u.uid AND n.uid = :uid;insert into vulnerable_demo values ('joincondition');", [':uid' => "1"]);
