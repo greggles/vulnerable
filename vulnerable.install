@@ -1,0 +1,22 @@
+<?php
+
+
+/**
+ * Implements hook_schema().
+ */
+function vulnerable_schema() {
+  $schema['vulnerable_demo'] = array(
+    'description' => 'Stores evidence of sql injection.',
+    'fields' => array(
+      'subject' => array(
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'The location of the injected text.',
+      ),
+    ),
+  );
+
+  return $schema;
+}

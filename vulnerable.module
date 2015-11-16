@@ -249,6 +249,183 @@ function vulnerable_init() {
 }
 
 /**
+ * Attempts to help test, demonstrate and debug database api weaknesses.
+ *
+ * NOTE: these examples assume you are on PHP before 5.5.21 / 5.6.5 o r have
+ * reversed the patch in https://www.drupal.org/node/2388255
+ *
+ * To use, do something like `drush -v ev "vulnerable_dbtng_weaknesses();"`
+ *
+ * It's well known that db_query() is weak to sqli with concatenating user-
+ * supplied content. However, what about DBTNG?
+ *
+ * After running this, you can expect to see 13 records in the vulnerable_demo
+ * database table. It should be fairly straightforward to imagine a scenario
+ * where a developer might allow user supplied strings to enter into these
+ * fields. The goal of this function is twofold:
+ *  1. It shows developers and reviewers which dbtng parameters they should
+ *     give particular attention when writing code or doing code reviews.
+ *  2. It might let us think of more ways to harden the database API.
+ *
+ * Please also consider the frequency with which methods are used:
+ *  https://gist.github.com/greggles/df1faa38ab27798e8e38
+ *
+ * @see vulnerable_node_list().
+ *
+ */
+function vulnerable_dbtng_weaknesses() {
+  // db_insert->fields(['dangerous', 'dangerous');
+  $query = db_insert('variable')
+    ->fields(["name", "value) values (3, 4);insert into vulnerable_demo values ('fields key1');"])
+    ->values([
+      "name" => "vulnerable_sqli_test2",
+      "value" => serialize('yep'),
+    ]);
+  $query->execute();
+
+  // db_insert->fields([dangerous => safe])
+  $query = db_insert('variable')
+    ->fields(array(
+      "value" => serialize('yep'),
+      "name) values (1, 2);insert into vulnerable_demo values ('fields key2');" => "vulnerable_sqli_test",
+    ));
+  $query->execute();
+  variable_del(2);
+
+  // db_insert->values([safe => safe]); * when combined with safe ->fields
+  // i.e. the "degenerate" form provides security if you must put user
+  // supplied data into the keys of the values.
+  //  $query = db_insert('variable')
+  //    ->fields(["name", "value"])
+  //    ->values([
+  //      "value" => serialize('yep'),
+  //      "name) values (1, 2);insert into vulnerable_demo values ('fields key3');" => "vulnerable_sqli_test2",
+  //    ]);
+  //  $results = $query->execute();
+
+  // db_update->fields()
+  $query = db_update('variable')
+    ->fields(array(
+      "value = 'some value' where 1 = 2;insert into vulnerable_demo values ('fields key update');" => "some value' where 1= 2;insert into vulnerable_demo values ('fields value');",
+    ))
+    ->condition('name', 'llamas in pajamas');
+  $query->execute();
+
+  // db_delete->condition(safe, safe, dangerous)
+  // This is the same as select and probably everywhere, just confirming it is.
+  $query = db_delete('variable')
+    ->condition("name", "vulnerable_sqli_test", "= 1);insert into vulnerable_demo values ('delete condition 3rd');");
+  $query->execute();
+
+  // db_select(safe, safe)
+  $query = db_select("node", "n")
+    ->fields("n", array("uid"));
+  $query->execute();
+
+  // ->fields(safe, safe)
+  $query = db_select("node", "n")
+    ->fields("n", array("uid"));
+  $query->execute();
+
+  // ->condition(safe, safe, dangerous)
+  $query = db_select('node', 'n')
+    ->fields('n', array('nid', 'title'))
+    ->condition("nid", "1", "= 1); insert into vulnerable_demo values ('condition operator');");
+  $query->execute();
+
+  // ->where(dangerous)
+  $query = db_select('node', 'n')
+    ->fields('n', array('nid', 'title'))
+    ->where("nid = 1);insert into vulnerable_demo values ('where');");
+  $query->execute();
+
+  // ->addTag(safe)
+  $query = db_select("node", "n");
+  $query->addField("n", "uid", "n_uid");
+  $query->addTag("foo");
+  $query->execute();
+
+  // addField(safe, safe, safe)
+  $query = db_select("node", "n");
+  $query->addField("n", "uid", "n_uid");
+  $query->execute();
+
+  // ->range(safe, safe)
+  $query = db_select('node', 'n')
+    ->fields('n', array('nid', 'title'))
+    ->range("10;insert into vulnerable_demo values ('range1');", "20;insert into vulnerable_demo values ('range1');");
+  $query->execute();
+
+  // ->join(safe, safe, dangerous, safe array of args)
+  // ->innerJoin(safe, safe, dangerous, safe array of args)
+  // ->leftJoin(safe, safe, dangerous, safe array of args)
+  // ->rightJoin(safe, safe, dangerous, safe array of args)
+  // ->addJoin(safe, safe, dangerous, safe array of args)
+  $query = db_select("node", "n")
+    ->fields("n", array("uid"));
+  $query->join("users", "u", "n.uid = u.uid AND n.uid = :uid;insert into vulnerable_demo values ('joincondition');", [':uid' => "1"]);
+  $query->execute();
+
+  // ->addJoin(dangerous, safe, safe, dangerous, safe array of parameters)
+  $query = db_select("node", "n");
+  $query->addField("n", "uid", "n_uid");
+  $query->addJoin("INNER JOIN users u on n.uid = u.uid;insert into vulnerable_demo values ('addJoin type');", "users", "u", "n.uid = u.uid AND n.uid = :uid;insert into vulnerable_demo values ('inner join condition');", [':uid' => ';']);
+  $query->execute();
+
+  //  ->addExpression(dangerous, safe)
+  $query = db_select('node', 'n')
+    ->fields('n', array('uid'));
+  $query->addExpression("count(uid) from node n group by n.uid;insert into vulnerable_demo values ('expression first param');", "uid_node_count");
+  $query->execute();
+
+  // ->isNotNull(safe)
+  $query = db_select("node", "n");
+  $query->addField("n", "uid", "n_uid");
+  $query->isNotNull("n.uid");
+  $query->range(1,2);
+  $results = $query->execute();
+
+  //  ->havingCondition(safe, safe, dangerous);
+  $query = db_select('node', 'n')
+    ->fields('n', array('uid'));
+  $query->addExpression('count(uid)', 'uid_node_count');
+  $query->groupBy("n.uid");
+  $query->havingCondition("uid_node_count", "2",  ">= 2);insert into vulnerable_demo values ('havingCondition condition');");
+  $query->execute();
+
+  // ->having(dangerous, safe parameter array)
+  $query = db_select('node', 'n')
+    ->fields('n', array('uid'));
+  $query->addExpression('count(uid)', 'uid_node_count');
+  $query->groupBy("n.uid");
+  $query->having("COUNT(uid) >= 2);insert into vulnerable_demo values ('having');");
+  $query->execute();
+
+  // ->groupBy(dangerous);
+  $query = db_select('node', 'n')
+    ->fields('n', array('uid'));
+  $query->addExpression('count(uid)', 'uid_node_count');
+  $query->groupBy("n.uid;insert into vulnerable_demo values ('groupby');");
+  $query->execute();
+
+  // See https://www.drupal.org/node/829464 - used to be both were dangerous.
+  // ->orderBy(dangerous, safe);
+  $query = db_select('node', 'n')
+    ->fields('n', array('nid', 'title'));
+  $query->orderBy("nid; insert into vulnerable_demo values ('order_field');", 'DESC');
+  $query->execute();
+
+  // ->addMetaData(safe, safe)
+  $mal_object = new StdClass();
+  $mal_object->inject = ";insert into vulnerable_demo values ('addMetadataObject');";
+  $query = db_select("node", "n");
+  $query->addField("n", "uid", "n_uid");
+  $query->addMetaData(";insert into vulnerable_demo values ('addMetadata key');", $mal_object);
+  $query->execute();
+
+}
+
+/**
  * A form that shows some XSS opportunities.
  */
 function vulnerable_user_fapi_form($form, &$form_state) {
