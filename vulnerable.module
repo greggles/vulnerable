@@ -274,7 +274,7 @@ function vulnerable_init() {
  *
  */
 function vulnerable_dbtng_weaknesses() {
-  // db_insert->fields(['dangerous', 'dangerous');
+  // db_insert->fields(['dangerous', 'dangerous']);
   $query = db_insert('variable')
     ->fields(["name", "value) values (3, 4);insert into vulnerable_demo values ('fields key1');"])
     ->values([
@@ -282,6 +282,7 @@ function vulnerable_dbtng_weaknesses() {
       "value" => serialize('yep'),
     ]);
   $query->execute();
+  variable_del(3);
 
   // db_insert->fields([dangerous => safe])
   $query = db_insert('variable')
@@ -382,7 +383,7 @@ function vulnerable_dbtng_weaknesses() {
   $query->addField("n", "uid", "n_uid");
   $query->isNotNull("n.uid");
   $query->range(1,2);
-  $results = $query->execute();
+  $query->execute();
 
   //  ->havingCondition(safe, safe, dangerous);
   $query = db_select('node', 'n')
