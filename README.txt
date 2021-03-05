@@ -1,14 +1,15 @@
-The code for this module is in 6.x-1.x and 7.x-1.x branches as is the
-standard on Drupal.org.
+The vulnerable.module was originally written to accompany the book https://www.crackingdrupal.com It provides examples of insecure code that people can learn from:
 
-The vulnerable.module which accompanies the book http://crackingdrupal.com
+* Learn to exploit the weaknesses
+* Modify the code to remove the vulnerability
 
-This module is for educational purposes only. "Fixes" welcome
-as pull requests on github.
+The code for this module is in 6.x-1.x and 7.x-1.x branches as is the standard on Drupal.org.
 
-Send praise via tweets [@greggles](https://twitter.com/greggles) or blog posts that link to 
-[Cracking Drupal](http://crackingdrupal.com/).
+This module is for educational purposes only. "Fixes" welcome as pull requests on github.
 
-Send complaints via issue reports on github :)
+Praise is welcome via tweets [@greggles](https://twitter.com/greggles) or blog posts, especially that link to 
+[Cracking Drupal](https://www.crackingdrupal.com/).
+
+Bug reports and criticism is particularly welcome as issues or pull requests on Github.
 
 Thanks for trying it out!
